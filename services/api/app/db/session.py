@@ -3,6 +3,8 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from services.api.app.core.config import settings
 
 DATABASE_URL = settings.DATABASE_URL
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 # Configure engine depending on dialect
 connect_args = {}

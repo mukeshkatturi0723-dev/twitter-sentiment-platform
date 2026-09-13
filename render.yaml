@@ -1,8 +1,9 @@
 services:
-  # 1. FastAPI Backend API
+  # 1. FastAPI Backend API (Free Tier)
   - type: web
     name: pulseai-api
     runtime: python
+    plan: free
     buildCommand: "pip install -r services/api/requirements.txt && python -c 'import nltk; nltk.download(\"vader_lexicon\", quiet=True)'"
     startCommand: "uvicorn services.api.app.main:app --host 0.0.0.0 --port $PORT"
     envVars:
@@ -16,16 +17,12 @@ services:
         fromDatabase:
           name: pulseai-db
           property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: pulseai-redis
-          property: connectionString
 
-  # 2. Next.js Web App
+  # 2. Next.js Web Dashboard (Free Tier)
   - type: web
     name: pulseai-web
     runtime: node
+    plan: free
     buildCommand: "cd packages/shared-types && npm install && npm run build && cd ../../apps/web && npm install && npm run build"
     startCommand: "cd apps/web && npm start"
     envVars:
@@ -42,27 +39,9 @@ services:
           name: pulseai-api
           property: host
 
-  # 3. Celery NLP Worker
-  - type: worker
-    name: pulseai-nlp-worker
-    runtime: python
-    buildCommand: "pip install -r services/nlp-worker/requirements.txt && python -c 'import nltk; nltk.download(\"vader_lexicon\", quiet=True)'"
-    startCommand: "cd services/nlp-worker && celery -A worker.app worker --loglevel=info"
-    envVars:
-      - key: CELERY_BROKER_URL
-        fromService:
-          type: redis
-          name: pulseai-redis
-          property: connectionString
-
 databases:
-  # Managed PostgreSQL Database
+  # Managed PostgreSQL Database (Free Tier)
   - name: pulseai-db
     databaseName: sentiment_db
     user: sentiment_user
     plan: free
-
-  # Managed Redis
-  - name: pulseai-redis
-    plan: free
-    ipAllowList: []
