@@ -1,0 +1,28 @@
+{
+  "name": "twitter-sentiment-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Full-stack real-time Twitter Sentiment Analysis Platform monorepo",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:web": "npm --prefix apps/web run dev",
+    "dev:mobile": "npm --prefix apps/mobile run start",
+    "dev:api": "uvicorn services.api.app.main:app --reload --port 8000",
+    "build:web": "npm --prefix apps/web run build",
+    "build:packages": "npm --prefix packages/shared-types run build",
+    "lint": "npm --prefix apps/web run lint"
+  },
+  "keywords": [
+    "sentiment-analysis",
+    "nlp",
+    "fastapi",
+    "nextjs",
+    "react-native",
+    "monorepo"
+  ],
+  "author": "Antigravity Dev",
+  "license": "MIT"
+}

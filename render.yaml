@@ -1,0 +1,68 @@
+services:
+  # 1. FastAPI Backend API
+  - type: web
+    name: pulseai-api
+    runtime: python
+    buildCommand: "pip install -r services/api/requirements.txt && python -c 'import nltk; nltk.download(\"vader_lexicon\", quiet=True)'"
+    startCommand: "uvicorn services.api.app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.8
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pulseai-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: pulseai-redis
+          property: connectionString
+
+  # 2. Next.js Web App
+  - type: web
+    name: pulseai-web
+    runtime: node
+    buildCommand: "cd packages/shared-types && npm install && npm run build && cd ../../apps/web && npm install && npm run build"
+    startCommand: "cd apps/web && npm start"
+    envVars:
+      - key: NODE_VERSION
+        value: 20.11.0
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: pulseai-api
+          property: host
+      - key: NEXT_PUBLIC_WS_URL
+        fromService:
+          type: web
+          name: pulseai-api
+          property: host
+
+  # 3. Celery NLP Worker
+  - type: worker
+    name: pulseai-nlp-worker
+    runtime: python
+    buildCommand: "pip install -r services/nlp-worker/requirements.txt && python -c 'import nltk; nltk.download(\"vader_lexicon\", quiet=True)'"
+    startCommand: "cd services/nlp-worker && celery -A worker.app worker --loglevel=info"
+    envVars:
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: pulseai-redis
+          property: connectionString
+
+databases:
+  # Managed PostgreSQL Database
+  - name: pulseai-db
+    databaseName: sentiment_db
+    user: sentiment_user
+    plan: free
+
+  # Managed Redis
+  - name: pulseai-redis
+    plan: free
+    ipAllowList: []
