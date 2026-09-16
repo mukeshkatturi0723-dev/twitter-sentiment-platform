@@ -1,18 +1,48 @@
 "use client";
 
-import React, { useState } from "react";
-import { Settings, Key, Cpu, Radio, Shield, CheckCircle2, Save } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { api } from "@/lib/api-client";
+import {
+  Settings,
+  Key,
+  Cpu,
+  Radio,
+  Mail,
+  Twitter,
+  CheckCircle2,
+  Save,
+  User
+} from "lucide-react";
 
 export default function SettingsPage() {
+  const [userEmail, setUserEmail] = useState("");
+  const [twitterHandle, setTwitterHandle] = useState("");
   const [bearerToken, setBearerToken] = useState("");
   const [engineMode, setEngineMode] = useState("hybrid");
   const [autoPulse, setAutoPulse] = useState(true);
   const [isSaved, setIsSaved] = useState(false);
 
+  useEffect(() => {
+    setUserEmail(api.getCurrentUserEmail());
+    if (typeof window !== "undefined") {
+      const storedHandle = localStorage.getItem("pulseai_twitter_handle") || "";
+      const storedToken = localStorage.getItem("pulseai_twitter_token") || "";
+      setTwitterHandle(storedHandle);
+      setBearerToken(storedToken);
+    }
+  }, []);
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    if (userEmail.trim()) {
+      api.setToken(api.getToken() || "token_" + Date.now(), userEmail.trim());
+    }
+    if (typeof window !== "undefined") {
+      localStorage.setItem("pulseai_twitter_handle", twitterHandle.trim());
+      localStorage.setItem("pulseai_twitter_token", bearerToken.trim());
+    }
     setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 2500);
+    setTimeout(() => setIsSaved(false), 3000);
   };
 
   return (
@@ -20,11 +50,54 @@ export default function SettingsPage() {
       <div>
         <h2 className="text-2xl font-bold tracking-tight text-white">Platform Settings</h2>
         <p className="text-xs text-slate-400">
-          Configure Twitter API integrations, NLP pipeline preferences, and system parameters
+          Configure your connected mail, Twitter integrations, and NLP pipeline preferences
         </p>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
+        {/* Connected Mail & Analyst Account */}
+        <div className="glass-panel rounded-2xl p-6 border border-slate-800 space-y-4">
+          <div className="flex items-center gap-2">
+            <Mail className="w-4 h-4 text-emerald-400" />
+            <h3 className="text-sm font-semibold text-white">Connected Analyst Mail</h3>
+          </div>
+          <p className="text-xs text-slate-400">
+            Your active analyst email associated with all custom tweet submissions, reports, and sentiment alerts.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1">
+                Your Email Address
+              </label>
+              <input
+                type="email"
+                required
+                value={userEmail}
+                onChange={(e) => setUserEmail(e.target.value)}
+                placeholder="analyst@sentiment.ai"
+                className="w-full px-3.5 py-2.5 bg-slate-900/90 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1">
+                Your Twitter / X Handle
+              </label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-mono">@</span>
+                <input
+                  type="text"
+                  value={twitterHandle}
+                  onChange={(e) => setTwitterHandle(e.target.value)}
+                  placeholder="your_handle"
+                  className="w-full pl-8 pr-4 py-2.5 bg-slate-900/90 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Twitter / X API v2 Configuration */}
         <div className="glass-panel rounded-2xl p-6 border border-slate-800 space-y-4">
           <div className="flex items-center gap-2">
@@ -32,7 +105,7 @@ export default function SettingsPage() {
             <h3 className="text-sm font-semibold text-white">X / Twitter API v2 Credentials</h3>
           </div>
           <p className="text-xs text-slate-400">
-            Optional: If no bearer token is supplied, the platform automatically switches to the built-in realistic streaming engine.
+            Optional: Enter your Twitter Bearer token to connect your production stream. If empty, the platform automatically streams through the built-in realistic cloud engine.
           </p>
 
           <div className="space-y-3">
@@ -110,7 +183,7 @@ export default function SettingsPage() {
               className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-800 bg-slate-900"
             />
             <span className="text-xs text-slate-300">
-              Enable real-time WebSocket live ticker sound and visual pulses on new tweets
+              Enable real-time WebSocket live ticker pulses and incoming stream events
             </span>
           </label>
         </div>
@@ -118,9 +191,9 @@ export default function SettingsPage() {
         {/* Save Button */}
         <div className="flex items-center justify-between pt-2">
           {isSaved ? (
-            <div className="flex items-center gap-1.5 text-xs text-emerald-400">
+            <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
               <CheckCircle2 className="w-4 h-4" />
-              <span>Settings updated successfully!</span>
+              <span>Settings and Connected Mail updated successfully!</span>
             </div>
           ) : <span />}
 

@@ -25,12 +25,12 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isConnected, latestTweet, liveStream } = useLiveFeed();
+  const { isConnected, streamMode, latestTweet, liveStream } = useLiveFeed();
 
   return (
     <LiveFeedContext.Provider value={{ isConnected, latestTweet, liveStream }}>
       <div className="min-h-screen flex flex-col bg-[#06090f] text-slate-100">
-        <Header isConnected={isConnected} />
+        <Header isConnected={isConnected} streamMode={streamMode} />
         <div className="flex flex-1">
           <Sidebar />
           <main className="flex-1 overflow-y-auto p-6 lg:p-8 max-w-7xl mx-auto w-full">

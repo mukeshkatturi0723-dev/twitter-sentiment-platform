@@ -34,24 +34,18 @@ export const AdHocClassifier: React.FC<AdHocClassifierProps> = ({ onIngestSucces
     if (!text.trim()) return;
     try {
       setIsPublishing(true);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/tweets/ingest`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text,
-          author: "web_analyst",
-          source: "manual"
-        })
+      await api.ingestTweet({
+        text,
+        author: "web_analyst",
+        source: "manual"
       });
-      if (response.ok) {
-        setPublishedSuccess(true);
-        if (onIngestSuccess) onIngestSuccess();
-        setTimeout(() => {
-          setText("");
-          setResult(null);
-          setPublishedSuccess(false);
-        }, 1500);
-      }
+      setPublishedSuccess(true);
+      if (onIngestSuccess) onIngestSuccess();
+      setTimeout(() => {
+        setText("");
+        setResult(null);
+        setPublishedSuccess(false);
+      }, 1500);
     } catch (err) {
       console.error("Publish failed:", err);
     } finally {
