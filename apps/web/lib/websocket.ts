@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Tweet, api } from "./api-client";
+import { Tweet } from "./api-client";
 import { MOCK_STREAM_POOL } from "./seed-data";
 import { clientClassify } from "./client-nlp";
+import { STREAM_CATEGORIES } from "./twitter-service";
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "";
 
@@ -12,20 +13,38 @@ export interface LiveFeedMessage {
   timestamp: string;
 }
 
-export function useLiveFeed() {
+export function useLiveFeed(initialCategory: string = "all") {
   const [isConnected, setIsConnected] = useState<boolean>(true);
   const [streamMode, setStreamMode] = useState<"websocket" | "cloud_stream">("cloud_stream");
+  const [currentCategory, setCurrentCategory] = useState<string>(initialCategory);
   const [latestTweet, setLatestTweet] = useState<Tweet | null>(null);
   const [liveStream, setLiveStream] = useState<Tweet[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const simulationIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Fallback simulator for cloud / Vercel
+  // Trigger next simulated tweet based on currentCategory
   const triggerSimulatedTweet = useCallback(() => {
-    const sample = MOCK_STREAM_POOL[Math.floor(Math.random() * MOCK_STREAM_POOL.length)];
+    let candidatePool: Array<{ author: string; text: string; hashtags?: string[] }> = [];
+
+    if (currentCategory && currentCategory !== "all") {
+      const catConfig = STREAM_CATEGORIES.find(c => c.id === currentCategory);
+      if (catConfig && catConfig.tweets.length > 0) {
+        candidatePool = catConfig.tweets;
+      }
+    }
+
+    if (candidatePool.length === 0) {
+      // Combined pool across all categories + mock stream
+      candidatePool = [
+        ...MOCK_STREAM_POOL,
+        ...STREAM_CATEGORIES.flatMap(c => c.tweets)
+      ];
+    }
+
+    const sample = candidatePool[Math.floor(Math.random() * candidatePool.length)];
     const nlp = clientClassify(sample.text);
     const mockTweet: Tweet = {
-      id: "sim-" + Date.now(),
+      id: "sim-" + Date.now() + "-" + Math.random().toString(36).substring(2, 5),
       tweet_id: "178" + Math.floor(Math.random() * 1000000000000000),
       author: sample.author,
       text: sample.text,
@@ -40,30 +59,30 @@ export function useLiveFeed() {
 
     setLatestTweet(mockTweet);
     setLiveStream((prev) => [mockTweet, ...prev.slice(0, 49)]);
-  }, []);
+  }, [currentCategory]);
 
   const startSimulation = useCallback(() => {
     setStreamMode("cloud_stream");
     setIsConnected(true);
 
-    if (!simulationIntervalRef.current) {
-      // Trigger initial tweet after 1.5s
-      setTimeout(triggerSimulatedTweet, 1500);
-
-      // Pulse every 11 seconds
-      simulationIntervalRef.current = setInterval(() => {
-        triggerSimulatedTweet();
-      }, 11000);
+    if (simulationIntervalRef.current) {
+      clearInterval(simulationIntervalRef.current);
     }
+
+    // Trigger initial tweet after 800ms
+    setTimeout(triggerSimulatedTweet, 800);
+
+    // Pulse every 10 seconds
+    simulationIntervalRef.current = setInterval(() => {
+      triggerSimulatedTweet();
+    }, 10000);
   }, [triggerSimulatedTweet]);
 
   const connect = useCallback(() => {
-    // Only attempt real WebSocket if URL is explicitly provided or if on localhost
     const isLocalhost = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
     const targetUrl = WS_URL || (isLocalhost ? "ws://localhost:8000/ws/live-feed" : "");
 
     if (!targetUrl || (typeof window !== "undefined" && window.location.protocol === "https:" && targetUrl.startsWith("ws://"))) {
-      // Insecure WS on HTTPS -> automatically use Cloud Simulation
       startSimulation();
       return;
     }
@@ -86,18 +105,16 @@ export function useLiveFeed() {
             setLiveStream((prev) => [msg.data!, ...prev.slice(0, 49)]);
           }
         } catch (e) {
-          console.error("[WebSocket] Message parse error:", e);
+          console.error("[WebSocket] Parse error:", e);
         }
       };
 
       socket.onclose = () => {
-        console.warn("[WebSocket] Gateway closed. Falling back to Cloud Stream.");
         startSimulation();
       };
 
-      socket.onerror = (err) => {
-        console.warn("[WebSocket] Error. Using Cloud Stream mode:", err);
-        socket.close();
+      socket.onerror = () => {
+        if (socket.readyState === WebSocket.OPEN) socket.close();
         startSimulation();
       };
     } catch (e) {
@@ -108,7 +125,6 @@ export function useLiveFeed() {
   useEffect(() => {
     connect();
 
-    // Listen for custom tweet ingestions triggered locally
     const handleCustomTweet = (e: Event) => {
       const customEvent = e as CustomEvent<Tweet>;
       if (customEvent.detail) {
@@ -130,5 +146,19 @@ export function useLiveFeed() {
     };
   }, [connect]);
 
-  return { isConnected, streamMode, latestTweet, liveStream };
+  // Restart simulator with updated category when currentCategory changes
+  useEffect(() => {
+    if (streamMode === "cloud_stream") {
+      startSimulation();
+    }
+  }, [currentCategory, startSimulation, streamMode]);
+
+  return {
+    isConnected,
+    streamMode,
+    latestTweet,
+    liveStream,
+    currentCategory,
+    setCategory: setCurrentCategory
+  };
 }

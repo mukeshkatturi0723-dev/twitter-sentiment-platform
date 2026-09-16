@@ -10,12 +10,16 @@ interface LiveFeedContextType {
   isConnected: boolean;
   latestTweet: Tweet | null;
   liveStream: Tweet[];
+  currentCategory: string;
+  setCategory: (category: string) => void;
 }
 
 const LiveFeedContext = createContext<LiveFeedContextType>({
   isConnected: false,
   latestTweet: null,
   liveStream: [],
+  currentCategory: "all",
+  setCategory: () => {},
 });
 
 export const useLiveStreamContext = () => useContext(LiveFeedContext);
@@ -25,12 +29,32 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isConnected, streamMode, latestTweet, liveStream } = useLiveFeed();
+  const {
+    isConnected,
+    streamMode,
+    latestTweet,
+    liveStream,
+    currentCategory,
+    setCategory
+  } = useLiveFeed();
 
   return (
-    <LiveFeedContext.Provider value={{ isConnected, latestTweet, liveStream }}>
+    <LiveFeedContext.Provider
+      value={{
+        isConnected,
+        latestTweet,
+        liveStream,
+        currentCategory,
+        setCategory
+      }}
+    >
       <div className="min-h-screen flex flex-col bg-[#06090f] text-slate-100">
-        <Header isConnected={isConnected} streamMode={streamMode} />
+        <Header
+          isConnected={isConnected}
+          streamMode={streamMode}
+          currentCategory={currentCategory}
+          onCategoryChange={setCategory}
+        />
         <div className="flex flex-1">
           <Sidebar />
           <main className="flex-1 overflow-y-auto p-6 lg:p-8 max-w-7xl mx-auto w-full">
