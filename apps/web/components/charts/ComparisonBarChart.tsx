@@ -14,11 +14,13 @@ import {
 import { BrandComparisonItem } from "@/lib/api-client";
 
 interface ComparisonBarChartProps {
-  data: BrandComparisonItem[];
+  data?: BrandComparisonItem[];
+  brands?: BrandComparisonItem[];
 }
 
-export const ComparisonBarChart: React.FC<ComparisonBarChartProps> = ({ data }) => {
-  const chartData = data.map((d) => ({
+export const ComparisonBarChart: React.FC<ComparisonBarChartProps> = ({ data, brands }) => {
+  const items = data || brands || [];
+  const chartData = items.map((d) => ({
     name: d.brand,
     Positive: d.positive_percentage,
     Neutral: d.neutral_percentage,
@@ -64,7 +66,7 @@ export const ComparisonBarChart: React.FC<ComparisonBarChartProps> = ({ data }) 
             wrapperStyle={{ paddingTop: "12px", fontSize: "12px" }}
           />
           <Bar dataKey="Positive" fill="#22c55e" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="Neutral" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="Neutral" fill="#f59e0b" radius={[4, 4, 0, 0]} />
           <Bar dataKey="Negative" fill="#ef4444" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>

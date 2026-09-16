@@ -49,10 +49,12 @@ module.exports = {
         sentiment: {
           positive: "#22c55e",
           negative: "#ef4444",
-          neutral: "#94a3b8",
-          positiveMuted: "rgba(34, 197, 94, 0.15)",
-          negativeMuted: "rgba(239, 68, 68, 0.15)",
-          neutralMuted: "rgba(148, 163, 184, 0.15)",
+          neutral: "#f59e0b",
+          info: "#3b82f6",
+          positiveMuted: "rgba(34, 197, 94, 0.12)",
+          negativeMuted: "rgba(239, 68, 68, 0.12)",
+          neutralMuted: "rgba(245, 158, 11, 0.12)",
+          infoMuted: "rgba(59, 130, 246, 0.12)",
         }
       },
       borderRadius: {
@@ -60,21 +62,7 @@ module.exports = {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
-      keyframes: {
-        "pulse-subtle": {
-          "0%, 100%": { opacity: "1" },
-          "50%": { opacity: "0.6" },
-        },
-        "fade-in-up": {
-          "0%": { opacity: "0", transform: "translateY(10px)" },
-          "100%": { opacity: "1", transform: "translateY(0)" },
-        }
-      },
-      animation: {
-        "pulse-subtle": "pulse-subtle 2s ease-in-out infinite",
-        "fade-in-up": "fade-in-up 0.3s ease-out forwards",
-      }
     },
   },
   plugins: [],
-}
+};
