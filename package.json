@@ -8,6 +8,9 @@
     "apps/*"
   ],
   "scripts": {
+    "build": "npm --prefix apps/web run build",
+    "start": "npm --prefix apps/web run start",
+    "dev": "npm --prefix apps/web run dev",
     "dev:web": "npm --prefix apps/web run dev",
     "dev:mobile": "npm --prefix apps/mobile run start",
     "dev:api": "uvicorn services.api.app.main:app --reload --port 8000",
