@@ -61,3 +61,47 @@ def test_auth_login():
     data = response.json()
     assert "access_token" in data
     assert data["user"]["email"] == "analyst@sentiment.ai"
+
+def test_api_health():
+    response = client.get("/api/health")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "healthy"
+    assert data["model"] == "ready"
+
+def test_direct_analyze():
+    response = client.post(
+        "/api/analyze",
+        json={"text": "Outstanding speed and gorgeous UI! Highly recommend. 🔥"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["sentiment"] == "positive"
+    assert data["confidence"] > 0.6
+    assert "scores" in data
+
+def test_direct_batch_analyze():
+    response = client.post(
+        "/api/batch-analyze",
+        json={"texts": [
+            "Superb product, loving it!",
+            "Horrible customer service, very disappointed.",
+            "Meeting rescheduled to 4 PM."
+        ]}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 3
+    assert "summary" in data
+    assert data["summary"]["positive"] >= 1
+    assert data["summary"]["negative"] >= 1
+
+def test_model_metadata():
+    response = client.get("/api/model")
+    assert response.status_code == 200
+    data = response.json()
+    assert "name" in data
+    assert "evaluationMetrics" in data
+    assert data["evaluationMetrics"]["accuracy"] > 80.0
+    assert len(data["comparisonModels"]) >= 3
+

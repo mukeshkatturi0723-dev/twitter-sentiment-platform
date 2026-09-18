@@ -53,8 +53,8 @@ export const TrendLineChart: React.FC<TrendLineChartProps> = ({ data }) => {
               <stop offset="95%" stopColor="#ef4444" stopOpacity={0.0} />
             </linearGradient>
             <linearGradient id="neuGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#94a3b8" stopOpacity={0.0} />
+              <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.35} />
+              <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.0} />
             </linearGradient>
           </defs>
 
@@ -92,7 +92,7 @@ export const TrendLineChart: React.FC<TrendLineChartProps> = ({ data }) => {
             type="monotone"
             dataKey="neutral"
             name="Neutral"
-            stroke="#94a3b8"
+            stroke="#f59e0b"
             strokeWidth={1.5}
             fillOpacity={1}
             fill="url(#neuGrad)"

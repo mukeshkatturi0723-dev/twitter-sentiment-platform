@@ -9,7 +9,7 @@ interface SentimentDonutChartProps {
   neutral: number;
 }
 
-const COLORS = ["#22c55e", "#ef4444", "#94a3b8"];
+const COLORS = ["#22c55e", "#ef4444", "#f59e0b"];
 
 export const SentimentDonutChart: React.FC<SentimentDonutChartProps> = ({
   positive,
@@ -77,7 +77,7 @@ export const SentimentDonutChart: React.FC<SentimentDonutChartProps> = ({
           <span>Neg ({negative})</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
           <span>Neu ({neutral})</span>
         </div>
       </div>
