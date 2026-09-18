@@ -1,55 +1,42 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { api, AnalyticsSummary, TrendPoint, KeywordItem, Tweet } from "@/lib/api-client";
+import React, { useEffect, useState, useMemo } from "react";
+import { api, AnalyticsSummary, KeywordItem, Tweet } from "@/lib/api-client";
 import { useLiveStreamContext } from "../layout";
-import { StatCard } from "@/components/ui/StatCard";
-import { LiveTweetTicker } from "@/components/feed/LiveTweetTicker";
+import { TwitterComposer } from "@/components/feed/TwitterComposer";
 import { TweetCard } from "@/components/feed/TweetCard";
-import { AdHocClassifier } from "@/components/feed/AdHocClassifier";
-import { TrendLineChart } from "@/components/charts/TrendLineChart";
-import { SentimentDonutChart } from "@/components/charts/SentimentDonutChart";
-import { KeywordCloud } from "@/components/charts/KeywordCloud";
-import {
-  Activity,
-  Smile,
-  Frown,
-  Meh,
-  RefreshCw,
-  Hash,
-  Radio,
-  ArrowRight,
-  Sparkles,
-  ShieldCheck
-} from "lucide-react";
-import Link from "next/link";
+import { TwitterRightBar } from "@/components/feed/TwitterRightBar";
+import { Sparkles, RefreshCw, Radio, X } from "lucide-react";
+
+type SentimentTab = "for_you" | "positive" | "negative" | "neutral";
 
 export default function DashboardPage() {
   const { isConnected, latestTweet } = useLiveStreamContext();
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
-  const [trendData, setTrendData] = useState<TrendPoint[]>([]);
   const [keywords, setKeywords] = useState<KeywordItem[]>([]);
-  const [recentTweets, setRecentTweets] = useState<Tweet[]>([]);
+  const [tweets, setTweets] = useState<Tweet[]>([]);
+  const [activeTab, setActiveTab] = useState<SentimentTab>("for_you");
+  const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loadDashboardData = async () => {
     try {
-      setIsLoading(true);
-      const [sumRes, trendRes, kwRes, tweetRes] = await Promise.all([
+      setIsRefreshing(true);
+      const [sumRes, kwRes, tweetRes] = await Promise.all([
         api.getSummary(),
-        api.getTrend(undefined, 7),
-        api.getKeywords(14),
-        api.getTweets({ limit: 6 })
+        api.getKeywords(12),
+        api.getTweets({ limit: 40 })
       ]);
 
       setSummary(sumRes);
-      setTrendData(trendRes);
       setKeywords(kwRes);
-      setRecentTweets(tweetRes.items);
+      setTweets(tweetRes.items);
     } catch (err) {
       console.error("Failed to load dashboard data:", err);
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -57,192 +44,189 @@ export default function DashboardPage() {
     loadDashboardData();
   }, []);
 
+  // Handle incoming live websocket stream tweet
   useEffect(() => {
     if (latestTweet) {
-      setRecentTweets((prev) => [latestTweet, ...prev.filter((t) => t.id !== latestTweet.id).slice(0, 5)]);
+      setTweets((prev) => [
+        latestTweet,
+        ...prev.filter((t) => t.id !== latestTweet.id).slice(0, 50)
+      ]);
       api.getSummary().then(setSummary).catch(() => {});
     }
   }, [latestTweet]);
 
+  // Handle local user compose & post
+  const handleTweetPosted = (newTweet: Tweet) => {
+    setTweets((prev) => [newTweet, ...prev]);
+    api.getSummary().then(setSummary).catch(() => {});
+  };
+
+  // Filter tweets based on active tab and search query
+  const filteredTweets = useMemo(() => {
+    return tweets.filter((t) => {
+      // Sentiment tab filter
+      if (activeTab === "positive" && t.sentiment !== "positive") return false;
+      if (activeTab === "negative" && t.sentiment !== "negative") return false;
+      if (activeTab === "neutral" && t.sentiment !== "neutral") return false;
+
+      // Search query filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase().trim();
+        const matchesText = t.text.toLowerCase().includes(query);
+        const matchesAuthor = t.author.toLowerCase().includes(query);
+        const matchesHashtags = t.hashtags && t.hashtags.some((h) => h.toLowerCase().includes(query));
+        return matchesText || matchesAuthor || matchesHashtags;
+      }
+
+      return true;
+    });
+  }, [tweets, activeTab, searchQuery]);
+
   return (
-    <div className="space-y-6">
-      {/* Live Ticker */}
-      <LiveTweetTicker latestTweet={latestTweet} isConnected={isConnected} />
+    <div className="flex flex-1 min-w-0 justify-center">
+      {/* Center Feed Column */}
+      <div className="flex-1 min-w-0 max-w-[660px] border-r border-[#2f3336] min-h-screen">
+        {/* Sticky Twitter Home Header */}
+        <div className="sticky top-0 z-30 bg-black/80 backdrop-blur-md border-b border-[#2f3336]">
+          <div className="flex items-center justify-between px-4 py-3">
+            <h1 className="text-xl font-bold text-white tracking-tight">Home</h1>
 
-      {/* Top Section / Header Summary */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-white">Sentiment Overview</h2>
-          <p className="text-xs text-slate-400">
-            Real-time multi-tier NLP sentiment intelligence, streaming firehose monitoring, and analytics
-          </p>
-        </div>
+            <div className="flex items-center gap-3">
+              {/* WebSocket Live Indicator */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#16181c] border border-[#2f3336] text-[11px] text-neutral-400">
+                <span className={`w-2 h-2 rounded-full ${isConnected ? "bg-[#00ba7c] animate-pulse" : "bg-amber-400"}`} />
+                <span className="hidden sm:inline">{isConnected ? "Live Stream" : "Connecting"}</span>
+              </div>
 
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
-          <Link
-            href="/analyze"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30 transition-all active:scale-95"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Analyze New Text</span>
-          </Link>
-
-          <button
-            onClick={loadDashboardData}
-            disabled={isLoading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-colors"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-slate-400 ${isLoading ? "animate-spin" : ""}`} />
-            <span>Refresh</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Empty State vs Real Stat Cards */}
-      {summary && summary.total_tweets === 0 ? (
-        <div className="glass-panel rounded-2xl p-8 border border-slate-800 text-center space-y-3">
-          <h3 className="text-sm font-semibold text-white">No analysis yet</h3>
-          <p className="text-xs text-slate-400">
-            Analyze your first piece of text to populate the sentiment overview dashboard.
-          </p>
-          <Link
-            href="/analyze"
-            className="inline-flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 font-medium"
-          >
-            <span>Analyze your first text &rarr;</span>
-          </Link>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Analyses"
-            value={summary ? summary.total_tweets.toLocaleString() : "..."}
-            subtitle="Processed records"
-            change={summary?.change_vs_last_week.total_delta ? 12.5 : 0}
-            changeLabel="volume"
-            icon={<Activity className="w-5 h-5" />}
-            variant="default"
-          />
-          <StatCard
-            title="Positive Sentiment"
-            value={summary ? `${summary.percentages.positive}%` : "..."}
-            subtitle={summary ? `${summary.counts.positive} records` : ""}
-            change={summary?.change_vs_last_week.positive_delta || 4.2}
-            icon={<Smile className="w-5 h-5" />}
-            variant="positive"
-          />
-          <StatCard
-            title="Negative Sentiment"
-            value={summary ? `${summary.percentages.negative}%` : "..."}
-            subtitle={summary ? `${summary.counts.negative} records` : ""}
-            change={summary?.change_vs_last_week.negative_delta || -2.8}
-            icon={<Frown className="w-5 h-5" />}
-            variant="negative"
-          />
-          <StatCard
-            title="Neutral / Objective"
-            value={summary ? `${summary.percentages.neutral}%` : "..."}
-            subtitle={summary ? `Avg Conf: ${(summary.average_confidence * 100).toFixed(0)}%` : ""}
-            change={summary?.change_vs_last_week.neutral_delta || -1.4}
-            icon={<Meh className="w-5 h-5" />}
-            variant="neutral"
-          />
-        </div>
-      )}
-
-      {/* Main Charts Section: Trend Line + Radial Donut */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 glass-panel rounded-2xl p-5 border border-slate-800 space-y-3 shadow-xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-semibold text-white">Sentiment Volume Timeline</h3>
-              <p className="text-xs text-slate-400">Daily breakdown of positive, neutral, and negative records</p>
+              {/* Refresh Button */}
+              <button
+                onClick={loadDashboardData}
+                disabled={isRefreshing}
+                title="Refresh feed"
+                className="p-1.5 rounded-full hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-[#1d9bf0]" : ""}`} />
+              </button>
             </div>
-            <span className="text-[11px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-mono">
-              Last 7 Days
-            </span>
           </div>
 
-          <TrendLineChart data={trendData} />
-        </div>
-
-        <div className="glass-panel rounded-2xl p-5 border border-slate-800 space-y-3 flex flex-col justify-between shadow-xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-semibold text-white">Sentiment Ratio</h3>
-              <p className="text-xs text-slate-400">Proportional class distribution</p>
-            </div>
-            <span className="text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 font-mono">
-              3-Class
-            </span>
-          </div>
-
-          <SentimentDonutChart
-            positive={summary ? summary.counts.positive : 0}
-            negative={summary ? summary.counts.negative : 0}
-            neutral={summary ? summary.counts.neutral : 0}
-          />
-        </div>
-      </div>
-
-      {/* Ad-Hoc NLP Classifier & Keywords Cloud Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <AdHocClassifier onIngestSuccess={loadDashboardData} />
-
-        {/* Trending Hashtag Cloud */}
-        <div className="glass-panel rounded-2xl p-5 border border-slate-800 space-y-3 shadow-xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
-                <Hash className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-white">Trending Entities & Topics</h3>
-                <p className="text-xs text-slate-400">Hashtags colored by sentiment dominance</p>
-              </div>
-            </div>
-
-            <Link
-              href="/analytics"
-              className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors font-medium"
+          {/* Twitter Tab Navigation: For You / Positive / Negative / Neutral */}
+          <nav className="flex border-t border-[#2f3336]/60 text-sm font-medium">
+            <button
+              onClick={() => setActiveTab("for_you")}
+              className={`flex-1 py-3.5 text-center transition-colors relative hover:bg-white/[0.03] cursor-pointer ${
+                activeTab === "for_you" ? "text-white font-bold" : "text-neutral-500 hover:text-neutral-300"
+              }`}
             >
-              <span>Compare</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
+              <span>For You</span>
+              {activeTab === "for_you" && (
+                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-1 bg-[#1d9bf0] rounded-full" />
+              )}
+            </button>
 
-          <KeywordCloud keywords={keywords} />
+            <button
+              onClick={() => setActiveTab("positive")}
+              className={`flex-1 py-3.5 text-center transition-colors relative hover:bg-white/[0.03] cursor-pointer ${
+                activeTab === "positive" ? "text-[#00ba7c] font-bold" : "text-neutral-500 hover:text-neutral-300"
+              }`}
+            >
+              <span>Positive</span>
+              {activeTab === "positive" && (
+                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-1 bg-[#00ba7c] rounded-full" />
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab("negative")}
+              className={`flex-1 py-3.5 text-center transition-colors relative hover:bg-white/[0.03] cursor-pointer ${
+                activeTab === "negative" ? "text-[#f91880] font-bold" : "text-neutral-500 hover:text-neutral-300"
+              }`}
+            >
+              <span>Negative</span>
+              {activeTab === "negative" && (
+                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-1 bg-[#f91880] rounded-full" />
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab("neutral")}
+              className={`flex-1 py-3.5 text-center transition-colors relative hover:bg-white/[0.03] cursor-pointer ${
+                activeTab === "neutral" ? "text-neutral-200 font-bold" : "text-neutral-500 hover:text-neutral-300"
+              }`}
+            >
+              <span>Neutral</span>
+              {activeTab === "neutral" && (
+                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-1 bg-neutral-400 rounded-full" />
+              )}
+            </button>
+          </nav>
+        </div>
+
+        {/* Twitter Composer: "What is happening?!" input box */}
+        <TwitterComposer onTweetPosted={handleTweetPosted} />
+
+        {/* Active Search / Filter Banner */}
+        {searchQuery && (
+          <div className="p-3 bg-[#16181c] border-b border-[#2f3336] flex items-center justify-between text-xs text-neutral-300">
+            <span>
+              Searching for: <strong className="text-white">&ldquo;{searchQuery}&rdquo;</strong> ({filteredTweets.length} results)
+            </span>
+            <button
+              onClick={() => setSearchQuery("")}
+              className="flex items-center gap-1 text-[#1d9bf0] hover:underline"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Clear search</span>
+            </button>
+          </div>
+        )}
+
+        {/* Tweets Feed Stream */}
+        <div className="divide-y divide-[#2f3336]">
+          {isLoading ? (
+            <div className="p-12 text-center text-neutral-500 space-y-3">
+              <RefreshCw className="w-6 h-6 animate-spin mx-auto text-[#1d9bf0]" />
+              <p className="text-sm">Loading Twitter sentiment feed...</p>
+            </div>
+          ) : filteredTweets.length === 0 ? (
+            <div className="p-12 text-center text-neutral-500 space-y-3">
+              <p className="text-base text-neutral-400 font-medium">No tweets found</p>
+              <p className="text-xs text-neutral-500 max-w-sm mx-auto">
+                {searchQuery
+                  ? "Try changing your search query or clear the search filter."
+                  : "No tweets in this sentiment category yet. Use the composer above to analyze and post a tweet!"}
+              </p>
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="px-4 py-1.5 rounded-full bg-[#16181c] hover:bg-[#202327] text-sm text-[#1d9bf0] border border-[#2f3336] transition-colors"
+                >
+                  Clear filter
+                </button>
+              )}
+            </div>
+          ) : (
+            filteredTweets.map((tweet) => (
+              <TweetCard
+                key={tweet.id}
+                tweet={tweet}
+                isNew={latestTweet ? latestTweet.id === tweet.id : false}
+              />
+            ))
+          )}
         </div>
       </div>
 
-      {/* Latest Ingested Tweets Feed */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Radio className="w-4 h-4 text-indigo-400" />
-            <h3 className="text-sm font-semibold text-white">Live Ingestion Stream</h3>
-            <span className="text-xs text-slate-400">({recentTweets.length} recent)</span>
-          </div>
-
-          <Link
-            href="/dataset"
-            className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium transition-colors"
-          >
-            <span>View Dataset Explorer</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {recentTweets.map((tweet) => (
-            <TweetCard
-              key={tweet.id}
-              tweet={tweet}
-              isNew={latestTweet ? latestTweet.id === tweet.id : false}
-            />
-          ))}
-        </div>
-      </div>
+      {/* Right Column: Search, Minimal Sentiment Pulse Dashboard Widget, Trends */}
+      <TwitterRightBar
+        summary={summary}
+        keywords={keywords}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onSelectKeyword={(kw) => setSearchQuery(kw)}
+        activeFilter={activeTab}
+        onFilterChange={(tab) => setActiveTab(tab as SentimentTab)}
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext } from "react";
+import { usePathname } from "next/navigation";
 import { Header } from "@/components/ui/Header";
 import { Sidebar } from "@/components/ui/Sidebar";
 import { useLiveFeed } from "@/lib/websocket";
@@ -29,6 +30,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
   const {
     isConnected,
     streamMode,
@@ -37,6 +39,8 @@ export default function DashboardLayout({
     currentCategory,
     setCategory
   } = useLiveFeed();
+
+  const isTimelinePage = pathname === "/dashboard";
 
   return (
     <LiveFeedContext.Provider
@@ -48,16 +52,22 @@ export default function DashboardLayout({
         setCategory
       }}
     >
-      <div className="min-h-screen flex flex-col bg-[#06090f] text-slate-100">
+      <div className="min-h-screen bg-[#000000] text-[#f7f9f9] flex flex-col font-sans selection:bg-[#1d9bf0]/30">
+        {/* Mobile Top Navigation Header */}
         <Header
           isConnected={isConnected}
           streamMode={streamMode}
           currentCategory={currentCategory}
           onCategoryChange={setCategory}
         />
-        <div className="flex flex-1">
+
+        {/* Twitter 3-Column Root Layout */}
+        <div className="flex flex-1 justify-center max-w-[1320px] w-full mx-auto">
+          {/* Left Column: Navigation Sidebar */}
           <Sidebar />
-          <main className="flex-1 overflow-y-auto p-6 lg:p-8 max-w-7xl mx-auto w-full">
+
+          {/* Main Content Area */}
+          <main className={isTimelinePage ? "flex-1 min-w-0 flex min-h-screen" : "flex-1 min-w-0 p-5 sm:p-7 max-w-5xl mx-auto w-full min-h-screen"}>
             {children}
           </main>
         </div>
